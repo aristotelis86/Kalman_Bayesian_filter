@@ -61,6 +61,10 @@ class Kalman:
         self.Q = np.eye(self.dim)            # Variance matrix
         self.R = 6                           # Covariance 
 
+        # Create variables to keep history data
+        self.x_history = np.zeros((self.dim, self.history))
+        self.y_history = np.zeros((self.history, 1))
+
     def dump_members(self, ij = None):
         """
         Defining the "print" method for 
@@ -84,7 +88,7 @@ class Kalman:
         print('Covar: {}'.format(self.covariance))
         print('**************************')
 
-    def train_me(self, obs, model):
+    def train_me(self, obs, model, init = True):
         """
         Master method to control the initial 
         training of the filter.
@@ -94,11 +98,46 @@ class Kalman:
 
         if myobs.shape != mymodel.shape:
             raise TypeError('Initial training set does not have conforming shapes.')
-            return -1
         
-        
+        if max(myobs.shape) != self.history:
+            raise TypeError('Initial history data are not compatible with length of history: {}'.format(self.history))
 
 
+        # Since it is the first time...
+        for ih in range(self.history):
+
+            print('Training #{}'.format(ih))
+
+            y = obs[ih] - model[ih]
+
+            for ij in range(self.dim):
+                self.H[ij, 0] = model[ih] ** ij
+
+            xf = self.X
+            print('\nxf = {}'.format(xf))
+
+            Pf = self.P + self.Q
+            print('\nPf = {}'.format(Pf))
+
+            self.KG = np.dot(Pf, self.H) / np.dot(np.dot(self.H.T, Pf), self.H)
+            print('\nKG = {}'.format(self.KG))
+
+            self.P = np.dot(np.eye(self.dim) - np.dot(self.KG, self.H.T), Pf)
+            print('\nPa = {}'.format(self.P))
+
+            self.X = xf + self.KG * (y - np.dot(self.H.T, xf))
+            print('\nXa = {}'.format(self.X))
+
+            self.x_history[:, ih] = self.X[:,0]
+            print('\nx-history = {}'.format(self.x_history))
+
+            self.y_history[ih, 0] = y - np.dot(self.H.T, self.X)
+            print('\ny-history = {}'.format(self.y_history))
+            print('-------------------------------------------- \n')
+
+
+
+        return
 
 
 
